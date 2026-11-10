@@ -1,0 +1,84 @@
+name: bench
+
+# Qarqet e plota 248-biteshe (madhesia e nje sistemi real). Punon me dore ose me push ne nje dege bench/**.
+on:
+  workflow_dispatch:
+    inputs:
+      circuits:
+        description: "Qarqet (lloji nivele b), te ndara me presje"
+        default: "m 248 1,m 83 3,u 248 1,u 83 3"
+      power:
+        description: "Fuqia e powers of tau"
+        default: "17"
+  push:
+    branches: ["bench/**"]
+
+defaults:
+  run:
+    shell: bash
+
+permissions:
+  contents: read
+
+env:
+  CIRCUITS: ${{ github.event.inputs.circuits || 'm 248 1,m 83 3,u 248 1,u 83 3' }}
+  POWER: ${{ github.event.inputs.power || '17' }}
+
+jobs:
+  full:
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Emrat e qarqeve
+        run: |
+          names=""
+          IFS=',' read -ra cfgs <<<"$CIRCUITS"
+          for cfg in "${cfgs[@]}"; do
+            read -r kind D b <<<"$cfg"
+            names="$names ${kind}_b${b}_D${D}"
+          done
+          echo "NAMES=$names" >>"$GITHUB_ENV"
+      - name: Kompilo qarqet
+        run: |
+          IFS=',' read -ra cfgs <<<"$CIRCUITS"
+          bash scripts/circuits.sh "${cfgs[@]}"
+      - name: Cache per powers of tau (zhvillim)
+        uses: actions/cache@v4
+        with:
+          path: build/pot${{ env.POWER }}_final.ptau
+          key: pot${{ env.POWER }}-dev-v1
+      - name: Powers of tau, hyrjet dhe setup
+        run: mkdir -p build && node --max-old-space-size=12000 js/bench_inputs.mjs "$POWER" $NAMES
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Nderto provuesin ne Rust
+        run: cargo build --release -p ori-prover
+      - name: Prova ne Rust
+        run: |
+          for n in $NAMES; do
+            ./target/release/ori-prove "$n" 3 | tee -a build/rust_results.jsonl
+          done
+      - name: snarkjs verifikon provat e Rust
+        run: node js/verify_rust.mjs $NAMES
+      - name: Tabela
+        run: |
+          node -e '
+          const fs = require("fs");
+          const rows = fs.readFileSync("build/rust_results.jsonl", "utf8").split("\n").filter((l) => l.startsWith("{")).map((l) => JSON.parse(l));
+          const out = ["## Qarqet e plota (provues Rust, " + rows[0].fije + " fije)", "", "| Qarku | Kufizime | Ngarkimi i çelësit | Dëshmitari | Provë, minimumi | Provë, mesatarja | Verifikim |", "| --- | --- | --- | --- | --- | --- | --- |"];
+          for (const r of rows) out.push(`| ${r.emri} | ${r.kufizime} | ${r.ngarkimMs} ms | ${r.deshmitarMs} ms | ${r.proveMinMs} ms | ${r.proveMesMs} ms | ${r.verifyMs} ms |`);
+          console.log(out.join("\n"));
+          ' | tee build/bench.md >>"$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bench-results
+          path: |
+            build/rust_results.jsonl
+            build/bench_info.json
+            build/bench.md

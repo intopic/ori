@@ -26,6 +26,36 @@ jobs:
       - name: Testet e pemes (Poseidon real, aritet 2/4/8)
         run: node js/test.mjs 12
       - name: Kompilo qarqet e perditesimit
-        run: bash scripts/circuits.sh "u 24 1" "u 16 2" "u 11 3"
+        run: bash scripts/circuits.sh "u 24 1" "u 16 2" "u 11 3" "k2 24 1" "k2 11 3"
       - name: Testet e qarkut te perditesimit (kalime te vlefshme + falsifikime)
         run: node js/test_update.mjs 2>&1 | grep -vE "^ERROR|^Error in template|^$"
+      - name: Testet e proves ne grup (grupe te vlefshme + falsifikime)
+        run: node js/test_batch.mjs 2>&1 | grep -vE "^ERROR|^Error in template|^$"
+
+  rust:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Vektoret e krahasimit nga implementimi JS
+        run: mkdir -p build && node js/vectors.mjs > build/vectors.json
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo fmt --all --check
+      - run: cargo clippy --workspace --all-targets -- -D warnings
+      - name: Testet Rust (perfshire krahasimin bit-per-bit me JS)
+        run: ORI_VECTORS="$PWD/build/vectors.json" cargo test --workspace --release -- --nocapture
+      - name: Matje e pemes ne Rust
+        run: |
+          {
+            echo "## Pema në Rust"
+            echo
+            cargo run --release -p ori-tree --example bench -- 14
+          } | tee -a "$GITHUB_STEP_SUMMARY"

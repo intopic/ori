@@ -68,6 +68,13 @@ template CIPMembership(D, b) {
     path.inputs[0] <== keyHi;
     path.inputs[1] <== keyLo;
 
+    // Gjysmat e celesit duhet te jene 128-biteshe: perndryshe i njejti celes 256-bitesh do te kishte
+    // disa paraqitje (hi - 1, lo + 2^128) me shtigje te ndryshme, pra dy gjethe per nje celes.
+    component hiRange = Num2Bits(128);
+    hiRange.in <== keyHi;
+    component loRange = Num2Bits(128);
+    loRange.in <== keyLo;
+
     component bits = Num2Bits_strict();
     bits.in <== path.out;
 
