@@ -1,0 +1,47 @@
+name: claims
+
+# Mat metrikat e tabeles fillestare te studimit: kufizime, kohe prove, madhesi deshmie, gaz ne L1.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+defaults:
+  run:
+    shell: bash
+
+permissions:
+  contents: read
+
+jobs:
+  measure:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Kompilo qarqet
+        run: bash scripts/circuits.sh "m 20 1" "m 32 1" "m 7 3" "m 11 3" "u 24 1" "u 11 3"
+      - name: Cache per powers of tau (zhvillim)
+        uses: actions/cache@v4
+        with:
+          path: build/pot14_final.ptau
+          key: pot14-dev-v1
+      - name: Setup, prova dhe matje
+        run: node js/claims.mjs 14
+      - uses: foundry-rs/foundry-toolchain@v1
+      - name: Verifikimi ne kontrate dhe gazi
+        run: forge test --root contracts -vv | tee build/forge.txt
+      - name: Tabela pohim kundrejt matjes
+        run: node js/summary.mjs build/forge.txt | tee build/summary.md >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: claims-results
+          path: |
+            build/results.json
+            build/summary.md
+            build/forge.txt

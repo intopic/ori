@@ -1,0 +1,16 @@
+node_modules/
+build/
+target/
+crates/
+circuits/*.r1cs
+circuits/*.sym
+circuits/*_js/
+circuits/m_b*_D*.circom
+circuits/u_b*_D*.circom
+contracts/out/
+contracts/cache/
+contracts/src/Verifier.sol
+contracts/test/VerifierGas.t.sol
+*.zkey
+*.ptau
+*.wtns
