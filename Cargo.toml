@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["crates/ori-tree"]
+members = ["crates/ori-tree", "crates/ori-prover"]
 
 [profile.release]
 opt-level = 3

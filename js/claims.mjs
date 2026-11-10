@@ -98,6 +98,11 @@ for (const { kind, b, D } of VARIANTS) {
     verifyMs: Math.round(verifyMs),
   });
   console.log(JSON.stringify(out.circuits.at(-1)));
+  // per provuesin ne Rust: e njejta hyrje, dhe prova e snarkjs per verifikim te kryqezuar
+  writeFileSync(`build/${name}_input.json`, JSON.stringify(inputs.at(-1)));
+  writeFileSync(`build/${name}_proof.json`, JSON.stringify(proof));
+  writeFileSync(`build/${name}_public.json`, JSON.stringify(publicSignals));
+  writeFileSync(`build/${name}_vkey.json`, JSON.stringify(vkey));
   if (name === "m_b1_D20") gasArtifacts = { zkey, proof, publicSignals };
 }
 

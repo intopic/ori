@@ -4,6 +4,7 @@ name: claims
 on:
   push:
     branches: [main]
+  pull_request:
   workflow_dispatch:
 
 defaults:
@@ -33,6 +34,17 @@ jobs:
           key: pot14-dev-v1
       - name: Setup, prova dhe matje
         run: node js/claims.mjs 14
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Nderto provuesin ne Rust
+        run: cargo build --release -p ori-prover
+      - name: Prova ne Rust (e njejta hyrje dhe zkey si snarkjs)
+        run: |
+          for n in m_b1_D20 m_b1_D32 m_b3_D7 m_b3_D11 u_b1_D24 u_b3_D11; do
+            ./target/release/ori-prove "$n" 5 | tee -a build/rust_results.jsonl
+          done
+      - name: snarkjs verifikon provat e Rust
+        run: node js/verify_rust.mjs m_b1_D20 m_b1_D32 m_b3_D7 m_b3_D11 u_b1_D24 u_b3_D11
       - uses: foundry-rs/foundry-toolchain@v1
       - name: Verifikimi ne kontrate dhe gazi
         run: forge test --root contracts -vv | tee build/forge.txt
@@ -43,5 +55,6 @@ jobs:
           name: claims-results
           path: |
             build/results.json
+            build/rust_results.jsonl
             build/summary.md
             build/forge.txt
