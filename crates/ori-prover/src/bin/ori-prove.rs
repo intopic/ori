@@ -67,9 +67,19 @@ fn run() -> Result<(), String> {
         "newRoot"
     };
     bad_input[field] = json!("12345");
-    if prover.witness(&bad_input).is_ok() {
-        return Err("dëshmitari u llogarit për një rrënjë të rreme".into());
-    }
+    // Mbrojtja e parë: llogaritësi i dëshmitarit e refuzon. Mbrojtja e dytë, ajo që ka rëndësi:
+    // edhe nëse dëshmitari llogaritet, prova nuk duhet të verifikohet.
+    let rejected_at_witness = match prover.witness(&bad_input) {
+        Err(_) => true,
+        Ok(bad_witness) => {
+            let bad_proof = prover.prove(&bad_witness)?;
+            let bad_public = prover.public_inputs(&bad_witness).to_vec();
+            if prover.verify(&bad_public, &bad_proof)? {
+                return Err("një hyrje e rreme dha një provë të vlefshme".into());
+            }
+            false
+        }
+    };
 
     // prova e snarkjs, nëse ekziston, verifikohet nga Rust
     let snarkjs_checked = match (
@@ -103,6 +113,7 @@ fn run() -> Result<(), String> {
             "proveMesMs": (mean(&prove_ms) * 10.0).round() / 10.0,
             "verifyMs": (verify_ms * 10.0).round() / 10.0,
             "snarkjsVerifikuarNgaRust": snarkjs_checked,
+            "hyrjaERremeRefuzohetTeDeshmitari": rejected_at_witness,
             "fije": std::thread::available_parallelism().map(|n| n.get()).unwrap_or(1),
         })
     );

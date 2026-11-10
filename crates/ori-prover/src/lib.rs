@@ -58,12 +58,13 @@ impl Prover {
         self.matrices.num_instance_variables - 1
     }
 
-    /// Llogarit dëshmitarin e plotë nga hyrja JSON e qarkut. Dështon nëse një kufizim nuk plotësohet.
+    /// Llogarit dëshmitarin e plotë nga hyrja JSON e qarkut, me kontrollin e kufizimeve të ndezur
+    /// (si snarkjs): dështon nëse një kufizim `===` i qarkut nuk plotësohet.
     pub fn witness(&mut self, input: &Value) -> Res<Vec<Fr>> {
         let inputs = flatten_input(input)?;
         self.cfg
             .wtns
-            .calculate_witness_element::<Fr, _>(&mut self.cfg.store, inputs, false)
+            .calculate_witness_element::<Fr, _>(&mut self.cfg.store, inputs, true)
             .map_err(err("llogaritja e dëshmitarit"))
     }
 
