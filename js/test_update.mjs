@@ -84,6 +84,21 @@ for (const b of [1, 2, 3]) {
     if (x.activeOld[0] === "1") x.children[0] = x.children[0].map(bump);
     else x.newRoot = bump(x.newRoot);
   });
+  // Celes me gjysma jokanonike (hi - 1, lo + 2^128): deshmitari eshte plotesisht i qendrueshem per
+  // kete paraqitje, ndaj refuzohet vetem fale kontrollit 128-bitesh te gjysmave.
+  {
+    const t2 = new CipTrie(hash, b);
+    for (const k of keys.slice(0, 64)) t2.insert(k, 5n);
+    const hi = 7n, lo = 9n;
+    const alias = [hi - 1n, lo + (1n << 128n)];
+    const original = t2.pathOf.bind(t2);
+    t2.pathOf = () => hash(alias);
+    const w = t2.updateWithWitness((hi << 128n) | lo, 1n, D);
+    t2.pathOf = original;
+    w.input.keyHi = String(alias[0]);
+    w.input.keyLo = String(alias[1]);
+    forgeries.push(["gjysma jokanonike te celesit", w.input]);
+  }
   let rejected = 0;
   for (const [label, x] of forgeries) {
     const ok = await accepts(wasm, x);
