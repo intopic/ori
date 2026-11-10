@@ -5,6 +5,11 @@
 set -euo pipefail
 cd "$(dirname "$0")/../circuits"
 
+# Kompiluesi (WASI) sheh vetem dosjen ku ekzekutohet: circomlib kopjohet ketu.
+if [ ! -d circomlib ]; then
+  cp -r ../node_modules/circomlib ./circomlib
+fi
+
 configs=("$@")
 if [ ${#configs[@]} -eq 0 ]; then
   configs=("m 20 1" "m 32 1" "m 7 3" "m 11 3" "u 24 1" "u 16 2" "u 11 3")
@@ -23,6 +28,6 @@ for cfg in "${configs[@]}"; do
     continue
   fi
   echo "== $name"
-  npx circom2 "$name.circom" --r1cs --wasm --O2 -l ../node_modules | grep -iE "constraints|error" || true
+  npx circom2 "$name.circom" --r1cs --wasm --O2 | grep -iE "constraints|error" || true
   test -f "$name.r1cs"
 done

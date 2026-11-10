@@ -14,3 +14,4 @@ contracts/test/VerifierGas.t.sol
 *.zkey
 *.ptau
 *.wtns
+circuits/circomlib/
