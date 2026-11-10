@@ -26,9 +26,11 @@ jobs:
       - name: Testet e pemes (Poseidon real, aritet 2/4/8)
         run: node js/test.mjs 12
       - name: Kompilo qarqet e perditesimit
-        run: bash scripts/circuits.sh "u 24 1" "u 16 2" "u 11 3"
+        run: bash scripts/circuits.sh "u 24 1" "u 16 2" "u 11 3" "k2 24 1" "k2 11 3"
       - name: Testet e qarkut te perditesimit (kalime te vlefshme + falsifikime)
         run: node js/test_update.mjs 2>&1 | grep -vE "^ERROR|^Error in template|^$"
+      - name: Testet e proves ne grup (grupe te vlefshme + falsifikime)
+        run: node js/test_batch.mjs 2>&1 | grep -vE "^ERROR|^Error in template|^$"
 
   rust:
     runs-on: ubuntu-latest

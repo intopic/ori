@@ -6,7 +6,7 @@
   "description": "CIP-MPT: peme Poseidon me prova Groth16 (eksperimentale)",
   "scripts": {
     "circuits": "bash scripts/circuits.sh",
-    "test": "node js/test.mjs 12 && node js/test_update.mjs",
+    "test": "node js/test.mjs 12 && node js/test_update.mjs && node js/test_batch.mjs",
     "claims": "node js/claims.mjs"
   },
   "dependencies": {

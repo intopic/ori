@@ -1,6 +1,6 @@
 use ark_bn254::Fr;
 use ark_ff::One;
-use ori_tree::{fr_to_dec, membership_input, verify_proof, Hasher, Key, Mode, Tree};
+use ori_tree::{batch_input, fr_to_dec, membership_input, verify_proof, Hasher, Key, Mode, Tree};
 use serde_json::Value;
 use std::str::FromStr;
 
@@ -158,6 +158,7 @@ fn matches_javascript_reference() {
             let input = membership_input(t.root(), &p, levels).unwrap();
             assert_eq!(input, m["input"], "hyrja e anëtarësisë ndryshon nga JS (b={b})");
         }
+        let mut first = Vec::new();
         for u in case["updates"].as_array().unwrap() {
             let w = t.update_with_witness(key(&u["key"]), fr(&u["value"]), levels).unwrap();
             let mode = match w.mode {
@@ -172,6 +173,10 @@ fn matches_javascript_reference() {
                 "hyrja e përditësimit ndryshon nga JS (b={b})"
             );
         }
+        let batch = batch_input(&mut Hasher::new(), &first, levels).unwrap();
+        assert_eq!(batch, case["batch"], "hyrja e grupit ndryshon nga JS (b={b})");
+        assert!(batch_input(&mut Hasher::new(), &first[..1], levels).is_err());
+        assert!(batch_input(&mut Hasher::new(), &[first[1].clone(), first[0].clone()], levels).is_err());
         assert_eq!(fr_to_dec(&t.root()), case["finalRoot"].as_str().unwrap());
     }
 }

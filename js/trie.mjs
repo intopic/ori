@@ -167,6 +167,35 @@ export function verifyProof(hash, root, proof) {
   return cur === root;
 }
 
+// Hyrja per qarkun CIPBatch(K, D, b) nga K hyrje te njepasnjeshme te CIPUpdate (K >= 2).
+// txCommit: acc_0 = 0, acc_{i+1} = Poseidon(acc_i, keyHi_i, keyLo_i, newValue_i).
+export function batchInput(hash, txs) {
+  if (txs.length < 2) throw new Error("grupi kerkon te pakten 2 kalime");
+  let acc = 0n;
+  for (let i = 0; i < txs.length; i++) {
+    if (i > 0 && txs[i].oldRoot !== txs[i - 1].newRoot) throw new Error("kalimet nuk jane te zinxhiruara");
+    acc = hash([acc, BigInt(txs[i].keyHi), BigInt(txs[i].keyLo), BigInt(txs[i].newValue)]);
+  }
+  const col = (f) => txs.map((t) => t[f]);
+  return {
+    oldRoot: txs[0].oldRoot,
+    newRoot: txs.at(-1).newRoot,
+    txCommit: String(acc),
+    midRoots: txs.slice(0, -1).map((t) => t.newRoot),
+    keyHi: col("keyHi"),
+    keyLo: col("keyLo"),
+    newValue: col("newValue"),
+    oldValue: col("oldValue"),
+    otherPath: col("otherPath"),
+    otherValue: col("otherValue"),
+    isUpdate: col("isUpdate"),
+    isPush: col("isPush"),
+    children: col("children"),
+    activeOld: col("activeOld"),
+    activeNew: col("activeNew"),
+  };
+}
+
 // Hyrja per qarkun me D nivele fikse.
 export function circuitInput(root, proof, D) {
   const d = proof.levels.length;

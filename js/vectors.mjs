@@ -1,5 +1,5 @@
 // Gjeneron vektore krahasimi per implementimin ne Rust: node js/vectors.mjs > build/vectors.json
-import { createHasher, CipTrie, circuitInput } from "./trie.mjs";
+import { createHasher, CipTrie, circuitInput, batchInput } from "./trie.mjs";
 import { rng } from "./rng.mjs";
 
 const LEVELS = { 1: 40, 2: 24, 3: 16 };
@@ -36,6 +36,7 @@ for (const b of [1, 2, 3]) {
     root: String(root),
     membership,
     updates,
+    batch: batchInput(hash, updates.slice(0, 4).map((u) => u.input)),
     finalRoot: String(trie.root),
   });
 }

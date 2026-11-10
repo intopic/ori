@@ -14,10 +14,13 @@ defaults:
 permissions:
   contents: read
 
+env:
+  CIRCUITS: m_b1_D20 m_b1_D32 m_b3_D7 m_b3_D11 u_b1_D24 u_b3_D11 k4_b1_D24 k4_b3_D11
+
 jobs:
   measure:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -26,13 +29,13 @@ jobs:
           cache: npm
       - run: npm ci
       - name: Kompilo qarqet
-        run: bash scripts/circuits.sh "m 20 1" "m 32 1" "m 7 3" "m 11 3" "u 24 1" "u 11 3"
+        run: bash scripts/circuits.sh "m 20 1" "m 32 1" "m 7 3" "m 11 3" "u 24 1" "u 11 3" "k4 24 1" "k4 11 3"
       - name: Cache per powers of tau (zhvillim)
         uses: actions/cache@v4
         with:
-          path: build/pot14_final.ptau
-          key: pot14-dev-v1
-      - name: Setup, prova dhe matje
+          path: build/pot16_final.ptau
+          key: pot16-dev-v1
+      - name: Setup, prova dhe matje (snarkjs)
         run: node js/claims.mjs 14
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
@@ -40,11 +43,11 @@ jobs:
         run: cargo build --release -p ori-prover
       - name: Prova ne Rust (e njejta hyrje dhe zkey si snarkjs)
         run: |
-          for n in m_b1_D20 m_b1_D32 m_b3_D7 m_b3_D11 u_b1_D24 u_b3_D11; do
+          for n in $CIRCUITS; do
             ./target/release/ori-prove "$n" 5 | tee -a build/rust_results.jsonl
           done
       - name: snarkjs verifikon provat e Rust
-        run: node js/verify_rust.mjs m_b1_D20 m_b1_D32 m_b3_D7 m_b3_D11 u_b1_D24 u_b3_D11
+        run: node js/verify_rust.mjs $CIRCUITS
       - uses: foundry-rs/foundry-toolchain@v1
       - name: Verifikimi ne kontrate dhe gazi
         run: forge test --root contracts -vv | tee build/forge.txt

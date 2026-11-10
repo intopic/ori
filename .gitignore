@@ -8,8 +8,8 @@ circuits/m_b*_D*.circom
 circuits/u_b*_D*.circom
 contracts/out/
 contracts/cache/
-contracts/src/Verifier.sol
-contracts/test/VerifierGas.t.sol
+contracts/src/*.sol
+contracts/test/*.t.sol
 *.zkey
 *.ptau
 *.wtns

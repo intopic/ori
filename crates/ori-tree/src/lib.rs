@@ -389,3 +389,39 @@ impl UpdateWitness {
         })
     }
 }
+
+/// Hyrja për qarkun `CIPBatch(K, max_levels, b)` nga K kalime të njëpasnjëshme (K >= 2).
+///
+/// `txCommit`: `acc_0 = 0`, `acc_{i+1} = Poseidon(acc_i, keyHi_i, keyLo_i, newValue_i)`.
+pub fn batch_input(hasher: &mut Hasher, witnesses: &[UpdateWitness], max_levels: usize) -> Result<Value, String> {
+    if witnesses.len() < 2 {
+        return Err("grupi kërkon të paktën 2 kalime".into());
+    }
+    let mut acc = Fr::zero();
+    for (i, w) in witnesses.iter().enumerate() {
+        if i > 0 && w.old_root != witnesses[i - 1].new_root {
+            return Err("kalimet nuk janë të zinxhiruara".into());
+        }
+        acc = hasher.hash(&[acc, Fr::from(w.key.hi), Fr::from(w.key.lo), w.new_value]);
+    }
+    let inputs: Vec<Value> = witnesses.iter().map(|w| w.circuit_input(max_levels)).collect();
+    let col = |field: &str| -> Value { json!(inputs.iter().map(|x| x[field].clone()).collect::<Vec<Value>>()) };
+    let last = witnesses.len() - 1;
+    Ok(json!({
+        "oldRoot": fr_to_dec(&witnesses[0].old_root),
+        "newRoot": fr_to_dec(&witnesses[last].new_root),
+        "txCommit": fr_to_dec(&acc),
+        "midRoots": witnesses[..last].iter().map(|w| fr_to_dec(&w.new_root)).collect::<Vec<String>>(),
+        "keyHi": col("keyHi"),
+        "keyLo": col("keyLo"),
+        "newValue": col("newValue"),
+        "oldValue": col("oldValue"),
+        "otherPath": col("otherPath"),
+        "otherValue": col("otherValue"),
+        "isUpdate": col("isUpdate"),
+        "isPush": col("isPush"),
+        "children": col("children"),
+        "activeOld": col("activeOld"),
+        "activeNew": col("activeNew"),
+    }))
+}
