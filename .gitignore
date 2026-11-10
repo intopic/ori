@@ -1,7 +1,6 @@
 node_modules/
 build/
 target/
-crates/
 circuits/*.r1cs
 circuits/*.sym
 circuits/*_js/
