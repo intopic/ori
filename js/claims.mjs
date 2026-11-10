@@ -181,9 +181,137 @@ contract ${contract}GasTest {
   let calldataGas = 4 * 16;
   for (let i = 0; i < hex.length; i += 2) calldataGas += hex.slice(i, i + 2) === "00" ? 4 : 16;
   out.gas[label] = { emri: name, K, publike: n, calldataBajt: 4 + hex.length / 2, calldataGas };
+  return { a, bb, c, pub, K, lit };
 }
 await emitVerifier("m_b1_D20", "MembershipVerifier", "verify_gas");
-await emitVerifier("k4_b1_D24", "BatchVerifier", "batch_verify_gas");
+const batch = await emitVerifier("k4_b1_D24", "BatchVerifier", "batch_verify_gas");
+
+// Kontrata e gjendjes OriState: teste me proven reale te grupit.
+{
+  const { a, bb, c, pub, K, lit } = batch;
+  const args = "(uint256[2] memory a, uint256[2][2] memory b, uint256[2] memory c, uint256[3] memory p) = _args();";
+  writeFileSync("contracts/test/OriStateGas.t.sol", `// SPDX-License-Identifier: MIT
+// SKEDAR I GJENERUAR nga js/claims.mjs - mos e ndryshoni me dore.
+pragma solidity ^0.8.20;
+
+import "../src/BatchVerifier.sol";
+import "../src/OriState.sol";
+
+contract Outsider {
+    function trySubmit(OriState s, uint256 newRoot, uint256 txCommit, uint256[2] memory a, uint256[2][2] memory b, uint256[2] memory c)
+        external
+        returns (bool ok)
+    {
+        try s.submitBatch(newRoot, txCommit, a, b, c) {
+            ok = true;
+        } catch {
+            ok = false;
+        }
+    }
+
+    function accept(OriState s) external {
+        s.acceptOperator();
+    }
+}
+
+contract OriStateGasTest {
+    event log_named_uint(string key, uint256 val);
+
+    uint256 internal constant K = ${K};
+    BatchVerifier internal v;
+    OriState internal s;
+
+    function _args() internal pure returns (uint256[2] memory a, uint256[2][2] memory b, uint256[2] memory c, uint256[3] memory p) {
+        a = ${lit(a)};
+        b = [${lit(bb[0])}, ${lit(bb[1])}];
+        c = ${lit(c)};
+        p = ${lit(pub)};
+    }
+
+    function setUp() public {
+        v = new BatchVerifier();
+        (, , , uint256[3] memory p) = _args();
+        s = new OriState(IBatchVerifier(address(v)), p[0], K, address(this));
+    }
+
+    function _rejected(OriState target, uint256 newRoot, uint256 txCommit) internal returns (bool) {
+        (uint256[2] memory a, uint256[2][2] memory b, uint256[2] memory c, ) = _args();
+        try target.submitBatch(newRoot, txCommit, a, b, c) {
+            return false;
+        } catch {
+            return true;
+        }
+    }
+
+    function testSubmitBatchGas() public {
+        ${args}
+        uint256 g = gasleft();
+        s.submitBatch(p[1], p[2], a, b, c);
+        uint256 used = g - gasleft();
+        require(s.stateRoot() == p[1], "rrenja nuk u perditesua");
+        require(s.batchCount() == 1, "numeruesi i grupeve");
+        emit log_named_uint("submit_batch_gas", used);
+    }
+
+    function testReplayIsRejected() public {
+        ${args}
+        s.submitBatch(p[1], p[2], a, b, c);
+        require(_rejected(s, p[1], p[2]), "ripersritja u pranua");
+        require(s.stateRoot() == p[1] && s.batchCount() == 1, "gjendja ndryshoi nga ripersritja");
+    }
+
+    function testForgedNewRootIsRejected() public {
+        (, , , uint256[3] memory p) = _args();
+        require(_rejected(s, p[1] + 1, p[2]), "rrenja e rreme u pranua");
+        require(s.stateRoot() == p[0] && s.batchCount() == 0, "gjendja ndryshoi");
+    }
+
+    function testForgedCommitIsRejected() public {
+        (, , , uint256[3] memory p) = _args();
+        require(_rejected(s, p[1], p[2] + 1), "angazhimi i rreme u pranua");
+        require(s.stateRoot() == p[0], "gjendja ndryshoi");
+    }
+
+    function testWrongStartingRootIsRejected() public {
+        (, , , uint256[3] memory p) = _args();
+        OriState other = new OriState(IBatchVerifier(address(v)), p[0] + 1, K, address(this));
+        require(_rejected(other, p[1], p[2]), "prova u pranua mbi nje rrenje tjeter");
+    }
+
+    function testOutOfFieldAliasesAreRejected() public {
+        (, , , uint256[3] memory p) = _args();
+        uint256 field = s.FIELD();
+        require(_rejected(s, p[1] + field, p[2]), "alias i rrenjes jashte fushes u pranua");
+        require(_rejected(s, p[1], p[2] + field), "alias i angazhimit jashte fushes u pranua");
+        require(s.stateRoot() == p[0], "gjendja ndryshoi");
+    }
+
+    function testOnlyOperatorCanSubmit() public {
+        ${args}
+        Outsider o = new Outsider();
+        require(!o.trySubmit(s, p[1], p[2], a, b, c), "nje i huaj dergoi grup");
+        require(s.stateRoot() == p[0], "gjendja ndryshoi");
+    }
+
+    function testOperatorTransferIsTwoStep() public {
+        ${args}
+        Outsider o = new Outsider();
+        s.transferOperator(address(o));
+        require(s.operator() == address(this), "roli kaloi pa pranim");
+        o.accept(s);
+        require(s.operator() == address(o), "roli nuk kaloi");
+        require(_rejected(s, p[1], p[2]), "operatori i vjeter dergoi grup");
+        require(o.trySubmit(s, p[1], p[2], a, b, c), "operatori i ri nuk dergoi dot");
+        require(s.stateRoot() == p[1], "rrenja nuk u perditesua");
+    }
+}
+`);
+  // te dhenat e thirrjes submitBatch: selektori + newRoot, txCommit dhe 8 fjale te proves
+  const hex = [pub[1], pub[2], a, bb.flat(), c].flat().map((x) => BigInt(x).toString(16).padStart(64, "0")).join("");
+  let calldataGas = 4 * 16;
+  for (let i = 0; i < hex.length; i += 2) calldataGas += hex.slice(i, i + 2) === "00" ? 4 : 16;
+  out.gas.submit_batch_gas = { emri: "k4_b1_D24", K, calldataBajt: 4 + hex.length / 2, calldataGas };
+}
 
 writeFileSync("build/results.json", JSON.stringify(out, null, 1));
 console.log("build/results.json u shkrua");
