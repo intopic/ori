@@ -172,6 +172,9 @@ fn matches_javascript_reference() {
                 u["input"],
                 "hyrja e përditësimit ndryshon nga JS (b={b})"
             );
+            if first.len() < 4 {
+                first.push(w);
+            }
         }
         let batch = batch_input(&mut Hasher::new(), &first, levels).unwrap();
         assert_eq!(batch, case["batch"], "hyrja e grupit ndryshon nga JS (b={b})");
