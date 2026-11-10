@@ -26,6 +26,8 @@ fn err<E: std::fmt::Debug>(what: &str) -> impl Fn(E) -> String + '_ {
 pub struct Prover {
     pk: ProvingKey<Bn254>,
     matrices: NPIndex<Fr>,
+    /// Matricat A, B, C në formën që pret provuesi (përgatiten një herë).
+    abc: Vec<Vec<Vec<(Fr, usize)>>>,
     cfg: CircomConfig<Fr>,
     pvk: PreparedVerifyingKey<Bn254>,
 }
@@ -37,7 +39,14 @@ impl Prover {
         let (pk, matrices) = read_zkey(&mut reader).map_err(err("leximi i zkey"))?;
         let cfg = CircomConfig::<Fr>::new(wasm, r1cs).map_err(err("ngarkimi i qarkut"))?;
         let pvk = prepare_verifying_key(&pk.vk);
-        Ok(Self { pk, matrices, cfg, pvk })
+        let abc = vec![matrices.a.clone(), matrices.b.clone(), matrices.c.clone()];
+        Ok(Self {
+            pk,
+            matrices,
+            abc,
+            cfg,
+            pvk,
+        })
     }
 
     pub fn num_constraints(&self) -> usize {
@@ -67,15 +76,11 @@ impl Prover {
     pub fn prove(&self, witness: &[Fr]) -> Res<Proof<Bn254>> {
         let r = random_fr()?;
         let s = random_fr()?;
-        let matrices = [&self.matrices.a, &self.matrices.b, &self.matrices.c]
-            .iter()
-            .map(|m| (*m).clone().into())
-            .collect::<Vec<_>>();
         Groth16::<Bn254, CircomReduction>::create_proof_with_reduction_and_matrices(
             &self.pk,
             r,
             s,
-            &matrices,
+            &self.abc,
             self.matrices.num_instance_variables,
             self.matrices.num_constraints,
             witness,
